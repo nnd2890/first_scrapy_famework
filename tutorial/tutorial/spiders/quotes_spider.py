@@ -7,14 +7,19 @@ class QuotesSpider(scrapy.Spider):
     ]
         
     def parse(self,response):
-        for quote in response.css('div.quote'):
-            yield {
-                'text': quote.css('span.text::text').extract_first(),
-                'author': quote.css('small.author::text').extract_first(),
-                'tags': quote.css('div.tags a.tag::text').extract()
-            }
+        urls = response.css('div.quote > span > a::attr(href)').extract()
+        for url in urls:
+            url = response.urljoin(url)
+            yield scrapy.Request(url=url, callback=self.parse_details)
         
         next_page = response.css('li.next a::attr(href)').extract_first()
         if next_page is not None:
             next_page = response.urljoin(next_page)
-            yield response.follow(next_page, callback=self.parse)
+            yield scrapy.Request(next_page, callback=self.parse)
+
+    def parse_details(self,response):
+        yield {
+            'name':response.css('h3.author-title::text').extract_first(),
+            'birth_date':response.css('span.author-born-date::text').extract_first()
+        }
+        
